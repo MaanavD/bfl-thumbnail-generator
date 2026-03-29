@@ -6,6 +6,8 @@
 >
 > By the end of this tutorial, you'll type one command and get three production-quality thumbnail concepts in under 30 seconds — generated from your actual video content. Want yourself in the thumbnails? Pass a headshot.
 
+> Working repo: [github.com/MaanavD/bfl-thumbnail-generator](https://github.com/MaanavD/bfl-thumbnail-generator) (private for now; make it public before sharing this tutorial externally).
+
 ### What You'll Build
 
 This tutorial ships **two artifacts** that demonstrate the full arc from API integration to production automation:
@@ -86,10 +88,15 @@ Three professional thumbnail concepts for four cents.
 ### Step 1: Clone and Configure (2 minutes)
 
 ```bash
-git clone <your-repo-url>
-cd bfl-thumbnail-generator
+git clone git@github.com:MaanavD/bfl-thumbnail-generator.git
+cd bfl-thumbnail-generator/thumbnail-generator
 npm install
 ```
+
+The repo root contains this tutorial plus both shipped artifacts:
+
+- `thumbnail-generator/` - the CLI tool you'll build first
+- `pipeline/` - the end-to-end YouTube automation server you'll wire up later
 
 Create a `.env` file:
 
@@ -276,6 +283,50 @@ Done in 8.4s! Output saved to output/
 ```
 
 Open `viewer.html` in your browser. Three distinct thumbnails — and if you used `--face`, *you're in all of them*.
+
+### What a Real Run Produces
+
+This repo includes committed example outputs in `examples/` so anyone opening the repository can immediately see what the generator produces without spending credits first.
+
+These files were generated from this exact command:
+
+```bash
+node src/index.js "A deep dive into building SaaS products in 2025, covering React frontends, serverless backends on AWS, and Stripe billing integration"
+```
+
+Generated artifacts:
+
+```text
+thumbnail-generator/output/
+├── comparison.png
+├── metadata.json
+├── thumbnail_1.png
+├── thumbnail_2.png
+└── thumbnail_3.png
+
+examples/
+├── cli-comparison.png
+├── cli-cinematic.png
+├── cli-graphic.png
+└── cli-abstract.png
+```
+
+Committed showcase grid:
+
+![Generated comparison grid](examples/cli-comparison.png)
+
+The corresponding `metadata.json` captures the exact description, styles, and prompts used for the run:
+
+```json
+{
+  "description": "A deep dive into building SaaS products in 2025, covering React frontends, serverless backends on AWS, and Stripe billing integration",
+  "face": null,
+  "generated_at": "2026-03-28T17:54:22.846Z",
+  "styles": ["Cinematic", "Graphic", "Abstract"]
+}
+```
+
+That means the artifact is not just a demo script. It produces a reusable package of outputs you can inspect, compare, archive, or feed into a downstream approval flow.
 
 ### Step 6: Iterate
 
@@ -499,7 +550,7 @@ You started with a CLI tool that saves you 2 hours per video. Wire it into your 
 The `pipeline/` directory in this repo is a working implementation of everything described above. It's a standalone Express server that handles YouTube Pub/Sub webhooks, fetches video descriptions, generates thumbnails via FLUX.2, and sets them on YouTube — all automatically.
 
 ```bash
-cd pipeline
+cd ../pipeline
 npm install
 cp .env.example .env   # Fill in BFL_API_KEY + Google service account
 npm start              # Server on port 3000
@@ -516,5 +567,22 @@ curl -X POST http://localhost:3000/trigger \
   -H "Content-Type: application/json" \
   -d '{"videoId": "VIDEO_ID"}'
 ```
+
+And when it runs successfully, the output is intentionally boring in the best way possible:
+
+```text
+$ node src/trigger.js vjDtClDSh6o --desc "A cinematic, close-up shot of a gamer's hands on a keyboard and mouse..."
+
+🎬 Pipeline started for video: vjDtClDSh6o
+📺 Video: "<your YouTube title>"
+📝 Using custom description: "A cinematic, close-up shot of a gamer's hands on a keyboard and mouse..."
+🎨 Built 3 style prompts: Cinematic, Graphic, Abstract
+⏳ Generating 3 images via FLUX.2...
+✅ 3 images generated (8.0s)
+📤 Setting "Cinematic" as thumbnail on YouTube...
+✅ Thumbnail set for video vjDtClDSh6o
+```
+
+If you omit `--desc`, the pipeline pulls the live YouTube description instead and uses that as the source material. That makes the fully automated version genuinely simple: publish the video, let the webhook fire, and let the pipeline do the rest.
 
 Or subscribe to YouTube Pub/Sub and let it run hands-free. See [`pipeline/README.md`](pipeline/README.md) for full setup.

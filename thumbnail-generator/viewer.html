@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thumbnail Generator — Results</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      padding: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+      color: #fff;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+
+    .grid-section {
+      margin-bottom: 3rem;
+    }
+
+    .grid-section h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .comparison-grid img {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+
+    .thumbnails {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .thumbnail-card {
+      background: #1a1a1a;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #2a2a2a;
+      transition: border-color 0.2s;
+    }
+
+    .thumbnail-card:hover {
+      border-color: #444;
+    }
+
+    .thumbnail-card img {
+      width: 100%;
+      display: block;
+    }
+
+    .thumbnail-card .info {
+      padding: 1rem 1.25rem;
+    }
+
+    .style-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      margin-bottom: 0.75rem;
+    }
+
+    .style-badge.cinematic { background: #1e3a5f; color: #7eb8ff; }
+    .style-badge.graphic { background: #4a1e5f; color: #c77eff; }
+    .style-badge.abstract { background: #1e5f3a; color: #7effa8; }
+
+    .prompt-text {
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: #bbb;
+      margin-bottom: 0.75rem;
+      max-height: 6em;
+      overflow-y: auto;
+    }
+
+    .copy-btn {
+      background: #2a2a2a;
+      color: #ccc;
+      border: 1px solid #444;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .copy-btn:hover {
+      background: #333;
+      color: #fff;
+      border-color: #666;
+    }
+
+    .copy-btn.copied {
+      background: #1e5f3a;
+      color: #7effa8;
+      border-color: #7effa8;
+    }
+
+    .error-msg {
+      background: #3a1e1e;
+      color: #ff7e7e;
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid #5f1e1e;
+    }
+
+    .meta {
+      color: #555;
+      font-size: 0.8rem;
+      margin-top: 2rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Thumbnail Generator</h1>
+  <div class="subtitle" id="topic">Loading...</div>
+
+  <div class="grid-section">
+    <h2>Comparison Grid</h2>
+    <div class="comparison-grid">
+      <img src="output/comparison.png" alt="Comparison grid" onerror="this.style.display='none'">
+    </div>
+  </div>
+
+  <div class="grid-section">
+    <h2>Individual Thumbnails</h2>
+    <div class="thumbnails" id="thumbnails"></div>
+  </div>
+
+  <div class="meta" id="meta"></div>
+
+  <script>
+    const STYLES = [
+      { name: "Cinematic", cls: "cinematic" },
+      { name: "Graphic", cls: "graphic" },
+      { name: "Abstract", cls: "abstract" },
+    ];
+
+    async function loadMetadata() {
+      try {
+        const res = await fetch("output/metadata.json");
+        if (!res.ok) throw new Error("metadata.json not found");
+        return await res.json();
+      } catch {
+        return null;
+      }
+    }
+
+    function copyPrompt(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = "Copied!";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = "Copy Prompt";
+          btn.classList.remove("copied");
+        }, 2000);
+      });
+    }
+
+    async function render() {
+      const data = await loadMetadata();
+      const container = document.getElementById("thumbnails");
+      const topicEl = document.getElementById("topic");
+      const metaEl = document.getElementById("meta");
+
+      if (!data) {
+        topicEl.textContent = "";
+        container.innerHTML =
+          '<div class="error-msg">No results found. Run <code>node src/index.js "Your topic"</code> first, then refresh this page.</div>';
+        return;
+      }
+
+      topicEl.textContent = data.description;
+      metaEl.textContent = `Generated ${new Date(data.generated_at).toLocaleString()}${data.face ? " · Face reference: " + data.face : ""}`;
+
+      data.prompts.forEach((prompt, i) => {
+        const style = STYLES[i];
+        const card = document.createElement("div");
+        card.className = "thumbnail-card";
+        card.innerHTML = `
+          <img src="output/thumbnail_${i + 1}.png" alt="${style.name} thumbnail">
+          <div class="info">
+            <span class="style-badge ${style.cls}">${style.name}</span>
+            <div class="prompt-text">${prompt}</div>
+            <button class="copy-btn" onclick="copyPrompt(this.dataset.prompt, this)" data-prompt="${prompt.replace(/"/g, '&quot;')}">Copy Prompt</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>

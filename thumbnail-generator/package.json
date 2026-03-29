@@ -1,0 +1,17 @@
+{
+  "name": "bfl-thumbnail-generator",
+  "version": "1.0.0",
+  "description": "Automated YouTube thumbnail generator powered by the BFL FLUX.2 API",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "generate": "node src/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "sharp": "^0.33.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,8 +1,8 @@
 # Thumbnail Pipeline — Automated YouTube Integration
 
-The fully automated version of the thumbnail generator. Listens for new YouTube video uploads via Pub/Sub webhooks, fetches the video description, generates 3 style-variant thumbnails with FLUX.2, and sets the winning option as the live thumbnail — all without human interaction.
+This is the automated version of the thumbnail generator. It listens for new YouTube video uploads via Pub/Sub webhooks, fetches the video description, generates three thumbnail variants with FLUX.2, and sets one live on the video.
 
-**This is the "end potential" counterpart to the [CLI tool](../thumbnail-generator/).** The CLI teaches you the BFL API. This shows how to ship it as a production pipeline.
+The [CLI tool](../thumbnail-generator/) teaches the core image-generation workflow. This package shows how to wire the same logic into production.
 
 ## Architecture
 
@@ -136,7 +136,7 @@ curl -X POST http://localhost:3000/trigger \
   -d '{"videoId": "VIDEO_ID", "pick": 0}'
 ```
 
-The `pick` field selects which style to set: `0` = Cinematic, `1` = Graphic, `2` = Abstract.
+The `pick` field selects which style to set: `0` for Cinematic, `1` for Graphic, `2` for Abstract.
 
 ## Project Structure
 
@@ -160,8 +160,8 @@ This server is stateless — deploy to any platform that runs Node.js:
 - **Railway / Render / Fly.io** — one-click deploys, free tiers available
 - **AWS Lambda + API Gateway** — wrap `server.js` with a Lambda adapter
 
-The only requirement is a publicly accessible URL for the YouTube Pub/Sub callback.
+The only hard requirement is a publicly accessible URL for the YouTube Pub/Sub callback.
 
 ## Cost
 
-~$0.04 per video (3 FLUX.2 images). YouTube API calls are free within standard quotas (10,000 units/day).
+~$0.04 per video for 3 FLUX.2 images. YouTube API calls stay free within the standard quota limits.

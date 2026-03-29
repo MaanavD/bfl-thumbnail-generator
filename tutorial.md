@@ -1,41 +1,41 @@
-﻿# Zero to Working Pipeline: Build an AI Thumbnail Generator with FLUX.2
+﻿# Zero to Working Pipeline: Build AI YouTube Thumbnails with FLUX.2
 
-**Automate a 2-hour design workflow into a single CLI command — one API key, zero LLM dependencies.**
+**Turn a manual thumbnail workflow into a single CLI command, then extend it into a fully automated YouTube pipeline.**
 
-> You have a video script. You need three thumbnail options. You open Figma, fight with stock photos, tweak Canva templates, export, compare, repeat. That's 1–2 hours of creative friction *per video*.
->
-> By the end of this tutorial, you'll type one command and get three production-quality thumbnail concepts in under 30 seconds — generated from your actual video content. Want yourself in the thumbnails? Pass a headshot.
+Most thumbnail workflows are still slow: collect references, open a design tool, make a few variants, export them, compare them, and repeat for every video.
+
+This tutorial replaces that with a small Node.js stack that takes a real video description, generates three thumbnail directions in seconds, and can optionally push one straight to YouTube.
 
 > Working repo: [github.com/MaanavD/bfl-thumbnail-generator](https://github.com/MaanavD/bfl-thumbnail-generator) (private for now; make it public before sharing this tutorial externally).
 
 ### What You'll Build
 
-This tutorial ships **two artifacts** that demonstrate the full arc from API integration to production automation:
+This repo ships two artifacts that cover the full path from API integration to production automation:
 
 | Artifact | What it does | What it teaches |
 |----------|--------------|------------------|
-| **`thumbnail-generator/`** | CLI tool — type a description, get 3 thumbnails | BFL FLUX.2 API, async polling, prompt templating, image compositing with sharp |
-| **`pipeline/`** | Express server — auto-generates and sets thumbnails when you publish a YouTube video | YouTube Pub/Sub webhooks, Data API integration, serverless-ready architecture |
+| **`thumbnail-generator/`** | CLI tool that turns a description into 3 thumbnails | BFL FLUX.2 API, async polling, prompt templating, image compositing with sharp |
+| **`pipeline/`** | Express server that generates and sets thumbnails after a YouTube publish event | YouTube Pub/Sub webhooks, Data API integration, serverless-ready architecture |
 
-The first is the foundation. The second is where it goes in production.
+Start with the CLI. Use the pipeline when you want the same logic running without you in the loop.
 
 ---
 
 ## Who This Is For
 
-Developers who ship. You're comfortable with Node.js, you've used APIs before, and you don't need hand-holding on `npm install`.
+This is for developers who are already comfortable with Node.js and API-based workflows.
 
 **Prerequisites:**
 - Node.js 20+
 - A BFL API key ([dashboard.bfl.ai](https://dashboard.bfl.ai/) — $10 in credits is plenty)
 
-That's it. One API key. No secondary LLM service, no prompt engineering degree.
+That's the minimum to get the CLI working. No secondary LLM service is required.
 
 ---
 
 ## The Architecture
 
-This is a pipeline — a single Node.js script that takes your video description, wraps it in three visual style templates, and sends them to FLUX.2. Optionally, pass a headshot and FLUX.2's multi-reference editing puts *you* in every thumbnail with character consistency.
+At its core, this is a small Node.js pipeline: take a description, wrap it in three style templates, send those prompts to FLUX.2, then save both individual outputs and a comparison grid. If you pass a headshot, FLUX.2's multi-reference editing can keep the subject consistent across all variants.
 
 ```
                                      +----------------------------+
@@ -60,17 +60,17 @@ This is a pipeline — a single Node.js script that takes your video description
 
 ### Why No LLM for Prompts?
 
-You might expect an LLM to generate the image prompts. We skip that entirely. Here's why:
+You might expect an LLM to generate the prompts. This project skips that layer for three reasons:
 
-1. **You already know your content.** A video title is weak signal. A paragraph you write about your actual video -- the thesis, the vibe, the key visuals — is far richer than anything an LLM will extrapolate from a title string.
-2. **Deterministic beats random.** LLM prompt generation is non-deterministic. Our template system gives you the same 3 style variations every time, wrapping *your* description in proven visual frameworks.
-3. **One fewer API key.** One fewer billing dashboard. One fewer rate limit. One fewer thing that can break at 2am.
+1. **The source material is already good.** A real description of the video is stronger input than a title-only prompt expansion.
+2. **Templates are predictable.** The same input always produces the same three style directions.
+3. **The system stays simpler.** One fewer dependency, one fewer bill, one fewer failure point.
 
 ### Why FLUX.2?
 
-YouTube thumbnails demand exact compositions — facial expressions, color palettes, object positioning, scene framing. FLUX.2's prompt adherence is what makes this pipeline viable. Previous models fumbled layouts and ignored compositional instructions. FLUX.2 follows them reliably, and the `flux-2-klein-4b` endpoint delivers sub-second inference at \$0.014/image.
+YouTube thumbnails need prompt adherence more than raw image quality. FLUX.2 is what makes this viable: it follows composition instructions well enough that style templates become useful instead of aspirational. The `flux-2-klein-4b` endpoint is also fast enough and cheap enough to generate three options per run without friction.
 
-When you pass a headshot with `--face`, the same endpoint activates multi-reference editing -- FLUX.2 maintains your facial identity across all three style variations. Same API, same endpoint, one extra parameter.
+When you pass a headshot with `--face`, the same endpoint activates multi-reference editing. Same API, same endpoint, one extra parameter.
 
 ### Cost Per Run
 
@@ -79,7 +79,7 @@ When you pass a headshot with `--face`, the same endpoint activates multi-refere
 | FLUX.2 × 3 images (1344×768) | ~\$0.04 |
 | **Total per run** | **~\$0.04** |
 
-Three professional thumbnail concepts for four cents.
+Three thumbnail concepts for roughly four cents.
 
 ---
 
@@ -93,7 +93,7 @@ cd bfl-thumbnail-generator/thumbnail-generator
 npm install
 ```
 
-The repo root contains this tutorial plus both shipped artifacts:
+The repo root contains this tutorial plus both artifacts:
 
 - `thumbnail-generator/` - the CLI tool you'll build first
 - `pipeline/` - the end-to-end YouTube automation server you'll wire up later
@@ -286,7 +286,7 @@ Open `viewer.html` in your browser. Three distinct thumbnails — and if you use
 
 ### What a Real Run Produces
 
-This repo includes committed example outputs in `examples/` so anyone opening the repository can immediately see what the generator produces without spending credits first.
+This repo includes committed example outputs in `examples/` so a reader can see the result immediately without spending credits first.
 
 These files were generated from this exact command:
 
@@ -326,7 +326,7 @@ The corresponding `metadata.json` captures the exact description, styles, and pr
 }
 ```
 
-That means the artifact is not just a demo script. It produces a reusable package of outputs you can inspect, compare, archive, or feed into a downstream approval flow.
+This is more than a one-off demo script. Each run produces outputs you can inspect, compare, archive, or pass into a downstream approval flow.
 
 ### Step 6: Iterate
 
@@ -359,11 +359,11 @@ The core logic stays the same regardless of where FLUX runs: **Description in �
 
 ## Fitting This Into a Fully Automated Pipeline
 
-A CLI tool is the starting point. The real power unlocks when you remove yourself from the loop entirely. Here's how this thumbnail generator slots into broader automation — from "I uploaded a video" to "thumbnails are live" with zero human interaction.
+The CLI is the starting point. The more interesting version is when the same generation logic runs without manual intervention. Here's how the generator fits into a broader automation flow from upload to live thumbnail.
 
 ### End-to-End: Video Publish → Thumbnails Live
 
-Here's the dream workflow: you hit "Publish" on YouTube, walk away, and thumbnails generate and set themselves. This is fully achievable today with a few glue pieces.
+The target workflow is simple: publish a video, let the system generate options, and set a thumbnail automatically.
 
 **The flow:**
 
@@ -421,11 +421,11 @@ export async function onVideoPublished(event) {
 }
 ```
 
-Want to pick the best thumbnail instead of defaulting to the first? Add a Slack/Discord notification step that posts the comparison grid and lets you tap a button. The function pauses, waits for your selection, then sets that one. Fully automated with an optional human checkpoint.
+If you want approval in the loop, add a Slack or Discord step that posts the comparison grid and waits for a choice before setting the thumbnail.
 
 ### Trigger Options
 
-Multiple ways to detect new content and kick off the pipeline:
+There are several reasonable trigger options:
 
 - **YouTube Pub/Sub** — subscribe to your channel's Atom feed via [push notifications](https://developers.google.com/youtube/v3/guides/push_notifications). YouTube pings your webhook URL when a new video goes live. Zero polling, instant.
 - **YouTube Data API polling** — simpler setup. A cron job calls `search.list` every few minutes filtered to your channel. When a new `videoId` appears, fire the pipeline.
@@ -437,7 +437,7 @@ The thumbnail generator already accepts a description string and an optional fac
 
 ### Orchestration: Serverless or Queued
 
-This pipeline is stateless and fast — perfect for serverless:
+This pipeline is stateless and fast enough to fit naturally into serverless:
 
 ```
 Upload event → Lambda / Cloud Function → thumbnail-generator → Output to S3
@@ -494,7 +494,7 @@ await youtube.thumbnails.set({
 });
 ```
 
-This closes the loop: video uploaded → thumbnails generated → best option set as the live thumbnail. If you want human approval in the loop, insert a Slack/Discord notification with the comparison grid and a "pick one" button — the automation pauses until someone taps a choice.
+This closes the loop: video uploaded, thumbnails generated, chosen option set live. If you want approval, insert a notification step before `youtube.thumbnails.set()`.
 
 ### Batch Processing: Backfill Existing Content
 
@@ -517,7 +517,7 @@ At $0.04/video, backfilling 200 videos costs $8. That's less than one stock phot
 
 ### A/B Testing at Scale
 
-Three style variations per video isn't just convenience — it's an A/B testing machine. Use the YouTube Data API to rotate thumbnails on a schedule and track click-through rate:
+Three style variations per video also give you a simple A/B testing workflow. Use the YouTube Data API to rotate thumbnails on a schedule and compare click-through rate:
 
 1. **Day 1–3:** Set Cinematic as thumbnail, record CTR.
 2. **Day 4–6:** Swap to Graphic, record CTR.
@@ -541,9 +541,9 @@ This is exactly what top YouTube channels do manually. With this pipeline, you c
 +------------------+     +-------------------+     +--------------------+
 ```
 
-The thumbnail generator we built is the middle box. It doesn't care what triggers it or where the output goes — it takes a description, returns images. That's what makes it composable.
+The generator is the middle box. It doesn't care what triggers it or where the output goes. It takes a description and returns images, which is exactly what makes it composable.
 
-You started with a CLI tool that saves you 2 hours per video. Wire it into your content pipeline and it saves you 2 hours per video *without you being there*.
+Start with the CLI. Then plug the same logic into your publishing workflow when you want the time savings without manual effort.
 
 ### Run the Pipeline Yourself
 

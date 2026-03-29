@@ -1,8 +1,8 @@
 # BFL Thumbnail Generator
 
-Automated YouTube thumbnail generator powered by the BFL FLUX.2 API.
+Generate three YouTube thumbnail concepts from a description using the BFL FLUX.2 API.
 
-Takes a video description → builds 3 style-variant prompts → sends them to FLUX.2 → outputs a comparison grid. Optionally pass a headshot with `--face` for character-consistent thumbnails featuring you.
+The CLI takes a description, wraps it in three style templates, sends all three prompts to FLUX.2, and saves both individual thumbnails and a comparison grid. Pass `--face` to keep the main subject consistent across variants.
 
 ## Quick Start
 
@@ -22,7 +22,7 @@ node src/index.js "Your description" --face headshot.jpg
 # 5. From a file
 node src/index.js --file description.txt --face headshot.jpg
 
-# 6. View results
+# 6. Review results
 # Open viewer.html in your browser
 ```
 
@@ -32,8 +32,8 @@ node src/index.js --file description.txt --face headshot.jpg
 
 ## Cost
 
-~$0.04 per run (3 images at FLUX.2 [klein] pricing). No other APIs needed.
+~$0.04 per run for 3 images at current FLUX.2 [klein] pricing. No other APIs required.
 
 ## Tutorial
 
-See the [full tutorial](../tutorial.md) for the complete walkthrough.
+See the [root landing page](../README.md) for the repo overview or the [full tutorial](../tutorial.md) for the complete walkthrough.

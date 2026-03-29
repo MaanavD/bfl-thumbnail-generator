@@ -1,23 +1,22 @@
-﻿# Zero to Working Pipeline: Build AI YouTube Thumbnails with FLUX.2
+﻿# Build AI YouTube Thumbnails with FLUX.2 in Under 15 Minutes
 
-**Turn a manual thumbnail workflow into a single CLI command, then extend it into a fully automated YouTube pipeline.**
+**Turn a manual thumbnail workflow into a single CLI command using the BFL API.**
 
 Most thumbnail workflows are still slow: collect references, open a design tool, make a few variants, export them, compare them, and repeat for every video.
 
-This tutorial replaces that with a small Node.js stack that takes a real video description, generates three thumbnail directions in seconds, and can optionally push one straight to YouTube.
+This tutorial replaces that with a small Node.js project that takes a real video description and generates three thumbnail directions in seconds.
 
 > Working repo: [github.com/MaanavD/bfl-thumbnail-generator](https://github.com/MaanavD/bfl-thumbnail-generator) (private for now; make it public before sharing this tutorial externally).
 
 ### What You'll Build
 
-This repo ships two artifacts that cover the full path from API integration to production automation:
+In this tutorial you'll build the first artifact in the repo:
 
 | Artifact | What it does | What it teaches |
 |----------|--------------|------------------|
 | **`thumbnail-generator/`** | CLI tool that turns a description into 3 thumbnails | BFL FLUX.2 API, async polling, prompt templating, image compositing with sharp |
-| **`pipeline/`** | Express server that generates and sets thumbnails after a YouTube publish event | YouTube Pub/Sub webhooks, Data API integration, serverless-ready architecture |
 
-Start with the CLI. Use the pipeline when you want the same logic running without you in the loop.
+The repo also includes a separate `pipeline/` artifact that shows where this can go in production, but this tutorial stays focused on the generator itself.
 
 ---
 
@@ -96,7 +95,7 @@ npm install
 The repo root contains this tutorial plus both artifacts:
 
 - `thumbnail-generator/` - the CLI tool you'll build first
-- `pipeline/` - the end-to-end YouTube automation server you'll wire up later
+- `pipeline/` - a separate GitHub artifact showing how the same core logic can run in production
 
 Create a `.env` file:
 
@@ -192,7 +191,7 @@ We run all 3 generations concurrently with `Promise.all`, so the total wait is t
 
 ### Tip: Getting a Good Description Without Writing One
 
-The pipeline runs on a description — but you don't have to write it from scratch. The best thumbnails come from rich, specific descriptions of your video's content. Here are three ways to get one with minimal effort, starting with the easiest.
+The generator runs on a description — but you don't have to write it from scratch. The best thumbnails come from rich, specific descriptions of your video's content. Here are three ways to get one with minimal effort, starting with the easiest.
 
 **Option A: YouTube's AI Summary (recommended — free, zero setup)**
 
@@ -345,244 +344,24 @@ Each run overwrites `output/` with fresh results. Total turnaround: under 10 sec
 
 ---
 
-## Scaling and Ecosystem
+## Beyond the Tutorial
 
-This tutorial uses the **BFL API** directly — one key, zero infrastructure. But the FLUX ecosystem gives you options as you scale:
+This tutorial stops at the point where you have a working thumbnail generator you can run locally in a few seconds. That's the right scope for a launch-day tutorial: fast setup, one API, real output.
 
-**Third-Party Platforms:** Providers like Replicate and Fal host FLUX models with their own scaling infrastructure. Swapping endpoints is often the only change needed — the request/response contract is functionally identical.
+If you want to take it further, the GitHub repo includes a separate `pipeline/` artifact that turns the same core logic into an automated YouTube workflow. That project listens for new videos, pulls descriptions, generates options, and can push a thumbnail live automatically.
 
-**Self-Hosted Open Weights:** FLUX.2 [klein] 4B is fully open under Apache 2.0, runnable on a single consumer GPU (~13GB VRAM). Wrap a ComfyUI or diffusers instance in an API, point this pipeline at your own metal, and skip per-image costs entirely.
-
-The core logic stays the same regardless of where FLUX runs: **Description in → Style templates → FLUX → Thumbnails out.**
-
----
-
-## Fitting This Into a Fully Automated Pipeline
-
-The CLI is the starting point. The more interesting version is when the same generation logic runs without manual intervention. Here's how the generator fits into a broader automation flow from upload to live thumbnail.
-
-### End-to-End: Video Publish → Thumbnails Live
-
-The target workflow is simple: publish a video, let the system generate options, and set a thumbnail automatically.
-
-**The flow:**
-
-```
-YouTube publish
-     │
-     ▼
-Pub/Sub notification (or poll)
-     │
-     ▼
-Cloud Function / Lambda
-     │
-     ├─ 1. Fetch video description via YouTube Data API
-     │
-     ├─ 2. buildPrompts(description) → 3 style prompts
-     │
-     ├─ 3. generateAllImages(prompts) → 3 thumbnails via BFL
-     │
-     ├─ 4. Upload to storage (S3 / GCS)
-     │
-     └─ 5. youtube.thumbnails.set() → live on the video
-```
-
-Every step here uses APIs we've already covered or standard cloud primitives. The only new piece is detecting the upload — YouTube supports this via [Pub/Sub push notifications](https://developers.google.com/youtube/v3/guides/push_notifications) that fire when your channel's feed updates.
-
-A simplified Cloud Function that wires this together:
-
-```javascript
-import { google } from "googleapis";
-import { buildPrompts } from "./src/promptGenerator.js";
-import { generateAllImages } from "./src/imageGenerator.js";
-
-export async function onVideoPublished(event) {
-  const youtube = google.youtube({ version: "v3", auth: oauthClient });
-
-  // 1. Get video details
-  const { data } = await youtube.videos.list({
-    part: "snippet",
-    id: event.videoId,
-  });
-  const description = data.items[0].snippet.description;
-
-  // 2. Generate thumbnails
-  const prompts = buildPrompts(description);
-  const images = await generateAllImages(prompts);
-
-  // 3. Set the first option as the thumbnail (or pick based on preference)
-  const stream = bufferToStream(images[0]);
-  await youtube.thumbnails.set({
-    videoId: event.videoId,
-    media: { mimeType: "image/png", body: stream },
-  });
-
-  console.log(`Thumbnail set for video ${event.videoId}`);
-}
-```
-
-If you want approval in the loop, add a Slack or Discord step that posts the comparison grid and waits for a choice before setting the thumbnail.
-
-### Trigger Options
-
-There are several reasonable trigger options:
-
-- **YouTube Pub/Sub** — subscribe to your channel's Atom feed via [push notifications](https://developers.google.com/youtube/v3/guides/push_notifications). YouTube pings your webhook URL when a new video goes live. Zero polling, instant.
-- **YouTube Data API polling** — simpler setup. A cron job calls `search.list` every few minutes filtered to your channel. When a new `videoId` appears, fire the pipeline.
-- **Cloud storage triggers** — if your workflow drops raw video files into S3 or GCS, a Lambda/Cloud Function fires on the `ObjectCreated` event and extracts metadata (filename, associated description file, etc.).
-- **CI/CD webhooks** — a GitHub Actions workflow triggers on a push to a `videos/` directory in a content repo, where each video has a companion `.md` file with the description.
-- **Zapier / Make / n8n** — for no-code glue. "When new YouTube video → call webhook" is a one-click trigger on all these platforms, and your webhook points at the Cloud Function above.
-
-The thumbnail generator already accepts a description string and an optional face image — both trivially extracted from any of these sources.
-
-### Orchestration: Serverless or Queued
-
-This pipeline is stateless and fast enough to fit naturally into serverless:
-
-```
-Upload event → Lambda / Cloud Function → thumbnail-generator → Output to S3
-```
-
-A minimal AWS Lambda wrapper looks like this:
-
-```javascript
-import { buildPrompts } from "./src/promptGenerator.js";
-import { generateAllImages } from "./src/imageGenerator.js";
-import { createComparisonGrid } from "./src/gridCompositor.js";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-
-export async function handler(event) {
-  const { description, faceUrl, videoId } = event;
-
-  const prompts = buildPrompts(description, !!faceUrl);
-  const images = await generateAllImages(prompts, faceUrl);
-  const grid = await createComparisonGrid(images);
-
-  const s3 = new S3Client({});
-  // Upload individual images + grid to S3
-  for (let i = 0; i < images.length; i++) {
-    await s3.send(new PutObjectCommand({
-      Bucket: process.env.OUTPUT_BUCKET,
-      Key: `thumbnails/${videoId}/option-${i + 1}.png`,
-      Body: images[i],
-      ContentType: "image/png",
-    }));
-  }
-
-  return { statusCode: 200, body: `Generated ${images.length} thumbnails` };
-}
-```
-
-For higher volumes, drop events onto an SQS queue and process them with a worker. The BFL API handles concurrency on their end — you just need to respect rate limits.
-
-### Auto-Setting Thumbnails via the YouTube API
-
-Once thumbnails land in S3 (or any accessible storage), a downstream step can push them directly to YouTube:
-
-```javascript
-// Using googleapis
-import { google } from "googleapis";
-
-const youtube = google.youtube({ version: "v3", auth: oauthClient });
-
-await youtube.thumbnails.set({
-  videoId: "YOUR_VIDEO_ID",
-  media: {
-    mimeType: "image/png",
-    body: thumbnailStream, // ReadStream of the chosen image
-  },
-});
-```
-
-This closes the loop: video uploaded, thumbnails generated, chosen option set live. If you want approval, insert a notification step before `youtube.thumbnails.set()`.
-
-### Batch Processing: Backfill Existing Content
-
-Got 200 existing videos with weak thumbnails? Wrap the generator in a simple loop:
-
-```javascript
-import { readFileSync } from "fs";
-
-const videos = JSON.parse(readFileSync("videos.json", "utf-8"));
-
-for (const video of videos) {
-  console.log(`Generating for: ${video.title}`);
-  const prompts = buildPrompts(video.description, !!video.facePath);
-  const images = await generateAllImages(prompts, video.facePath);
-  // Save or upload...
-}
-```
-
-At $0.04/video, backfilling 200 videos costs $8. That's less than one stock photo subscription month.
-
-### A/B Testing at Scale
-
-Three style variations per video also give you a simple A/B testing workflow. Use the YouTube Data API to rotate thumbnails on a schedule and compare click-through rate:
-
-1. **Day 1–3:** Set Cinematic as thumbnail, record CTR.
-2. **Day 4–6:** Swap to Graphic, record CTR.
-3. **Day 7–9:** Swap to Abstract, record CTR.
-4. **Day 10+:** Lock in the winner.
-
-This is exactly what top YouTube channels do manually. With this pipeline, you can automate the rotation and let the data decide.
-
-### The Full Picture
-
-```
-+------------------+     +-------------------+     +--------------------+
-| Content Source   |     | Thumbnail         |     | Distribution       |
-|                  |     | Generator         |     |                    |
-| YouTube publish  |     |                   |     | YouTube API        |
-| YouTube Pub/Sub  |     |                   |     | (auto-set thumb)   |
-| S3 file drop     |---->| buildPrompts()    |---->| Slack/Discord      |
-| Git push         |     | generateImages()  |     | approval flow      |
-| CMS webhook      |     | createGrid()      |     | S3 / CDN storage   |
-| Zapier / n8n     |     |                   |     | A/B rotation       |
-+------------------+     +-------------------+     +--------------------+
-```
-
-The generator is the middle box. It doesn't care what triggers it or where the output goes. It takes a description and returns images, which is exactly what makes it composable.
-
-Start with the CLI. Then plug the same logic into your publishing workflow when you want the time savings without manual effort.
-
-### Run the Pipeline Yourself
-
-The `pipeline/` directory in this repo is a working implementation of everything described above. It's a standalone Express server that handles YouTube Pub/Sub webhooks, fetches video descriptions, generates thumbnails via FLUX.2, and sets them on YouTube — all automatically.
-
-```bash
-cd ../pipeline
-npm install
-cp .env.example .env   # Fill in BFL_API_KEY + Google service account
-npm start              # Server on port 3000
-```
-
-Trigger it manually for any video:
-
-```bash
-# Via CLI
-node src/trigger.js VIDEO_ID
-
-# Via HTTP
-curl -X POST http://localhost:3000/trigger \
-  -H "Content-Type: application/json" \
-  -d '{"videoId": "VIDEO_ID"}'
-```
-
-And when it runs successfully, the output is intentionally boring in the best way possible:
+The important part is that the generator you built here is already the reusable core:
 
 ```text
-$ node src/trigger.js vjDtClDSh6o --desc "A cinematic, close-up shot of a gamer's hands on a keyboard and mouse..."
-
-🎬 Pipeline started for video: vjDtClDSh6o
-📺 Video: "<your YouTube title>"
-📝 Using custom description: "A cinematic, close-up shot of a gamer's hands on a keyboard and mouse..."
-🎨 Built 3 style prompts: Cinematic, Graphic, Abstract
-⏳ Generating 3 images via FLUX.2...
-✅ 3 images generated (8.0s)
-📤 Setting "Cinematic" as thumbnail on YouTube...
-✅ Thumbnail set for video vjDtClDSh6o
+description -> prompt templates -> FLUX.2 -> thumbnails
 ```
 
-If you omit `--desc`, the pipeline pulls the live YouTube description instead and uses that as the source material. That makes the fully automated version genuinely simple: publish the video, let the webhook fire, and let the pipeline do the rest.
+Once that exists, you can wire it into whatever environment you want:
 
-Or subscribe to YouTube Pub/Sub and let it run hands-free. See [`pipeline/README.md`](pipeline/README.md) for full setup.
+- BFL's API directly
+- a third-party FLUX provider like Replicate or Fal
+- self-hosted open weights
+- a webhook-driven publishing pipeline
+- a human approval flow for choosing the final thumbnail
+
+That broader production path belongs on GitHub, not in the launch tutorial. The tutorial should get a developer from zero to first successful API result quickly. The repo can then show what comes next.
